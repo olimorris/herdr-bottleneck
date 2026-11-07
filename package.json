@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --import ./test/support/register.js --test --test-concurrency=1 'test/*.test.js'"
+  }
+}
