@@ -455,7 +455,6 @@ export class ReviewTab {
     const standalone = (key, file, c, kind) => add({ key, height: height(c.text) + 2 + GAP, file, el: () => div().px(12).pb(GAP).child(rows.card(c, kind, this.t, height(c.text))) });
     const paths = new Set(this.files.map((f) => f.path));
     const gone = [...new Set([...outdated.keys(), ...byFile.keys(), ...rounds.keys()])].filter((p) => !paths.has(p)).map((path) => ({ path, status: "", add: 0, del: 0, hunks: [] }));
-    add({ key: "top", height: GAP, el: () => div() });
     let index = 0;
     for (const file of [...this.files, ...gone]) {
       headers.set(file.path, add({ key: `f:${file.path}`, height: FILE_H, file, el: () => this.fileHeader(file, counts.get(file.path) ?? 0, false) }));
