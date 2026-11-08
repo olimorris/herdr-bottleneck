@@ -7,6 +7,7 @@ import { ReviewTab } from "./tab.js";
 import { SendDialog } from "./send.js";
 import { CommitDialog } from "./commit.js";
 import { PushDialog } from "./push.js";
+import { SetupDialog } from "./setup.js";
 
 // Opened by mod.open: note the tab you came from, then show the space's review tab.
 function launch(cx) {
@@ -32,7 +33,7 @@ function launch(cx) {
   return null;
 }
 
-// One mod, chosen by what it was opened with: the launcher, the review tab, or one of the tab's dialogs.
+// One mod, chosen by what it was opened with: the launcher, the review tab, or one of its dialogs.
 export default class Bottleneck extends View {
   init(_p, cx) {
     migrate();
@@ -40,6 +41,7 @@ export default class Bottleneck extends View {
     this.role = p.send ? new SendDialog(p.send, cx)
       : p.commit ? new CommitDialog(p.commit, cx)
       : p.push ? new PushDialog(p.push, cx)
+      : p.setup ? new SetupDialog(p.setup, cx)
       : p.space ? new ReviewTab(p.space, cx)
       : launch(cx);
   }

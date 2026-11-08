@@ -2,7 +2,7 @@
 export const KEYS = {
   h: "prev_mode", l: "next_mode", j: "next_hunk", k: "prev_hunk", "shift-j": "next_file", "shift-k": "prev_file", c: "comment", f: "comment_file", x: "delete", s: "send",
   space: "stage", "shift-space": "stage_file", d: "discard", "shift-d": "discard_file", "shift-c": "commit", "shift-p": "push", z: "fold",
-  e: "explain", a: "ask", v: "viewed",
+  e: "explain", a: "ask", v: "viewed", r: "reply",
   "/": "search", n: "next_match", "shift-n": "prev_match", "+": "more_context", "-": "less_context",
 };
 
@@ -20,7 +20,7 @@ export const HINTS = [
   [["comment"], "comment on hunk"], [["comment_file"], "comment on file"], [["delete"], "delete comment"], [["send"], "send comments"],
   [["stage"], "stage hunk"], [["stage_file"], "stage file"], [["discard"], "discard hunk"], [["discard_file"], "discard file"],
   [["commit"], "commit"], [["push"], "push"], [["fold"], "fold file"], [["viewed"], "mark file viewed"],
-  [["explain"], "agent explains diff"], [["ask"], "ask about hunk"],
+  [["explain"], "agent explains diff"], [["ask"], "ask about hunk"], [["reply"], "reply to agent"],
   [["search"], "search the diff"], [["next_match", "prev_match"], "next / previous match"], [["more_context", "less_context"], "more / less context"],
 ];
 

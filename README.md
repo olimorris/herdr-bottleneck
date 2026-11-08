@@ -11,16 +11,13 @@
 ## Features
 
 - :mag: Review an agent's changes like a pull request
-- :speech_balloon: Comment on hunks or files and send to an agent to edit
-- :memo: Or write them to a markdown file
-- :card_index_dividers: Review uncommitted, vs main, or since your last review
-- :repeat: See which comments the agent acted on
-- :white_check_mark: Stage and discard hunks or files
-- :rocket: Commit and push, with agent-drafted messages
-- :twisted_rightwards_arrows: Open pull requests, with agent-drafted descriptions
+- :speech_balloon: Comment on hunks or files and send to an agent
+- :left_speech_bubble: Talk it through with the agent, under the code
+- :warning: Rank files by risk and review the riskiest first
+- :repeat: See only what changed since your last review
+- :white_check_mark: Stage, discard, commit and push as you go
+- :twisted_rightwards_arrows: Open pull requests with agent-drafted descriptions
 - :thinking: Ask the agent to explain its changes
-- :eyes: Mark files as viewed
-- :flashlight: Search the diff and expand context
 - :art: Syntax highlighting with [delta](https://github.com/dandavison/delta)
 - :keyboard: lazygit-style keys
 
@@ -30,7 +27,7 @@ We are the bottleneck [[1]](#references). Agents write code faster than we can r
 
 Reviewing usually means juggling `git diff`, an editor and your agent's chat, sending comments as you go. Comments and fixes become a merry-go-round, and every round you review the whole diff again. Then you have to work out what the agent changed, and whether it addressed your comments at all.
 
-Bottleneck puts the diff, your comments, the agent and git in one place. Comments are sent to the agent with the corresponding code. Its next round shows only what changed since you sent them. Staging hunks turns the diff into a to-do list.
+Bottleneck puts the diff, your comments, the agent and git in one place. Comments go to the agent with the corresponding code. Connect your agents through Bottleneck's MCP server and the conversation comes back to you: the agent answers each comment under the code. It flags the places it's unsure about. It ranks the files by risk, so you start where it matters. Each round shows only what changed since the last. Staging hunks turns the diff into a to-do list.
 
 ## Install
 
@@ -50,7 +47,9 @@ cd herdr-bottleneck
 
 It copies the mod into Herdr, binds `cmd-shift-r` unless that key is taken, and checks the mod loads. To update, `git pull` and run it again.
 
-Needs `git`. Optional: `delta` for syntax highlighting, [gh](https://cli.github.com) for pull requests.
+Agents answer your comments and rank the diff through Bottleneck's MCP server. Bottleneck offers to set it up the first time you need it. Setup installs the server's packages, adds it to Claude Code and shows the config for any other agent. From a clone, `./install.sh --mcp` does the same, and later updates keep it set up.
+
+Needs `git`. Optional: `delta` for syntax highlighting, [gh](https://cli.github.com) for pull requests, Node.js 18 for the MCP server.
 
 ## Usage
 
@@ -71,7 +70,7 @@ Press `cmd-shift-r` in your agent's tab. A Code review tab opens in the same spa
 | `J` / `K` | Next / previous file |
 | `c` | Comment on hunk |
 | `f` | Comment on file |
-| `x` | Delete comment |
+| `x` | Delete comment, or close a conversation |
 | `s` | Send comments |
 | `space` | Stage hunk |
 | `shift-space` | Stage file |
@@ -82,6 +81,7 @@ Press `cmd-shift-r` in your agent's tab. A Code review tab opens in the same spa
 | `v` | Mark file viewed |
 | `e` | Agent explains the diff |
 | `a` | Ask about hunk |
+| `r` | Reply to the agent |
 | `+` / `-` | More / less context |
 | `/` | Search; `n` / `N` for next / previous match |
 | `?` | Show or hide key hints |
@@ -92,13 +92,27 @@ Dialogs confirm with `cmd-enter` and close with `esc`.
 
 <img src="https://github.com/user-attachments/assets/1a9d445e-3040-48c5-a681-76f90c7b929f" alt="Send comments">
 
-`s` opens the send dialog. Pick the agent, then one of three options:
+`s` opens the send dialog. Pick the agent, then one of the options:
 
 1. **Paste**: into the agent's input, so you can add context
 2. **Send**: paste and press Enter for you
-3. **Markdown file**: `.git/bottleneck.md`, path copied. Comments clear when the file is deleted
+3. **Markdown file**: `.git/bottleneck.md`, path copied. Comments clear when the file is deleted. Without the MCP server only, since there's no one to answer in Bottleneck
 
 Comments are kept per repo until sent. If the agent rewrites a commented hunk, the comment is marked outdated and still sent.
+
+### Talking to the agent
+
+Needs the MCP server. Each comment you send becomes a conversation under its hunk, like a GitHub review thread. The agent answers there, saying what it changed or why it didn't. Press `r` to reply in place. Your reply goes straight to the agent, and you can watch the fix land in the diff. `x` closes the conversation, and staging the hunk folds it away.
+
+The agent can start conversations too. As it works, it flags places it's unsure about or guessed at, on the line in question, so you know where to look first.
+
+### Ranking by risk
+
+Needs the MCP server. Click the risk icon above the file list and an agent ranks every file in the view by how risky it is to get wrong. The list then runs riskiest first, each file with its risk and a one-line reason. You can pick a running agent or start a new one in its own tab. A new one ranks without defending choices it made. The list icon switches back to path order, and the refresh icon ranks again after the agent has changed more.
+
+### Staging
+
+In Uncommitted, `space` stages a hunk and `shift-space` a file. A fully staged file moves into a **Staged** section under the file list, and to the end of the diff, folded. `j` and `k` skip it, so you only step through what's left. Unstage it with its "−" button or `shift-space` to bring it back.
 
 ### Customising
 

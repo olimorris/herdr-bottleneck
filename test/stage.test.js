@@ -113,3 +113,12 @@ test("staging refuses when HEAD moved since the diff was read", async (t) => {
   r.write("a.txt", lines(1, 30).replace("line 3\n", "three\n").replace("line 25\n", "twenty-five\n"));
   await assert.rejects(stageLines(r.root, r.gitDir, a, keysOf([a.hunks[0]])), /changed since the diff was read/);
 });
+
+test("staging one of two cards split from a single git hunk stages only its change", async (t) => {
+  const r = repo(t, { "a.txt": lines(1, 30) });
+  r.write("a.txt", lines(1, 30).replace("line 10\n", "ten\n").replace("line 14\n", "fourteen\n"));
+  const a = await fileOf(r, "a.txt");
+  await stageLines(r.root, r.gitDir, a, keysOf([a.hunks[1]]));
+  assert.deepEqual(changed(r.git("diff", "--cached", "-U0")), ["-line 14", "+fourteen"]);
+  assert.deepEqual(changed(r.git("diff", "-U0")), ["-line 10", "+ten"]);
+});

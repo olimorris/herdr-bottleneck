@@ -1,4 +1,4 @@
-import { focused, props, setShared, closeOverlay } from "herdr";
+import { focused, props, setShared, openOverlay, closeOverlay } from "herdr";
 import { DIALOG } from "./store.js";
 
 // The review tab leaves the keyboard alone while one is open, and it closes when you switch away from its tab.
@@ -14,7 +14,14 @@ export class Dialog {
     closeOverlay(props().overlay);
   }
 
+  // Swapping one dialog for another, the old one's close comes after the new one opens and mustn't hand the tab back the keyboard.
+  handOff(overlay) {
+    this.handingOff = true;
+    openOverlay(overlay);
+    this.dismiss();
+  }
+
   close() {
-    setShared(DIALOG, false);
+    if (!this.handingOff) setShared(DIALOG, false);
   }
 }

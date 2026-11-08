@@ -3,3 +3,4 @@ mods/*/jsconfig.json
 .DS_Store
 media/
 todo.md
+node_modules/
