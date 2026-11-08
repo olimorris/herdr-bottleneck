@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/d285ef9f-ba00-4944-9b49-2f575ffa7c39" alt="Bottleneck" />
+  <img src="https://github.com/user-attachments/assets/689fb067-a674-4e23-8212-01bb261eaf2a" alt="Bottleneck" />
 </p>
 
 > "AI substantially increases code output but has smaller effects on final software output … Code review becomes the bottleneck."
