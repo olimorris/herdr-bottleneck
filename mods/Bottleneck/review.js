@@ -2,6 +2,7 @@ import { exec, hc, run, notify, readTextFile, writeTextFile } from "herdr";
 import { snapshot } from "./git.js";
 import { COMMENTS, ROUND, VIEWED, entry, setEntry } from "./store.js";
 import { plural, pathAt } from "./words.js";
+import { open } from "./threads.js";
 
 export function saved(root) {
   const s = entry(COMMENTS, root);
@@ -78,16 +79,19 @@ export function followUp(files, round) {
   });
 }
 
-export function message(comments) {
+// With the MCP server each comment carries its id, so the agent can answer it in Bottleneck.
+export function message(comments, mcp = false) {
   const sorted = [...comments].sort((a, b) => a.path.localeCompare(b.path) || (a.file ? 0 : a.start) - (b.file ? 0 : b.start));
   const items = sorted.map((c, i) => {
     const lines = c.text.trim().split("\n");
     const prefix = `${i + 1}. `, pad = " ".repeat(prefix.length);
     const diff = c.diff?.length ? [pad + "```diff", ...c.diff.map((l) => pad + l), pad + "```"] : [];
-    const where = (c.file ? c.path : pathAt(c.path, c)) + (c.outdated ? " (outdated)" : "");
+    const where = (c.file ? c.path : pathAt(c.path, c)) + (c.outdated ? " (outdated)" : "") + (mcp ? ` · id ${c.id}` : "");
     return [prefix + lines[0], ...lines.slice(1).map((l) => pad + l), pad + where, ...diff].join("\n");
   });
-  return ["Review these comments:", "", items.join("\n\n"), "", "For each comment above, determine whether it is valid and should be fixed. If so, fix it directly."].join("\n");
+  const ask = "For each comment above, determine whether it is valid and should be fixed. If so, fix it directly.";
+  const answer = "Then answer each one by its id with the bottleneck MCP server's reply_to_comment tool: say what you changed, or why you didn't.";
+  return ["Review these comments:", "", items.join("\n\n"), "", mcp ? `${ask} ${answer}` : ask].join("\n");
 }
 
 // Where the agent writes its reasons when asked to explain the diff, one per hunk.
@@ -147,8 +151,10 @@ export async function copy(text) {
 }
 
 // Pasting from the clipboard is the only way to type into an agent without pressing Enter: hc send always submits.
-export async function deliver(how, agent, root) {
-  const comments = saved(root).comments, text = message(comments);
+// `gitDir` and `mcp` turn what's sent into threads the agent answers through the MCP server.
+export async function deliver(how, agent, root, { gitDir, mcp } = {}) {
+  const comments = saved(root).comments, text = message(comments, mcp);
+  if (mcp) await open(root, gitDir, comments, agent);
   if (how === "submit") {
     const r = await hc(["send", agent.address, text]);
     if (r.code !== 0) {
@@ -170,10 +176,11 @@ export async function deliver(how, agent, root) {
   return true;
 }
 
-export async function writeReview(root, gitDir) {
+export async function writeReview(root, gitDir, mcp = false) {
   const comments = saved(root).comments, path = `${gitDir}/bottleneck.md`;
   try {
-    await writeTextFile(path, message(comments) + "\n", await readTextFile(path));
+    if (mcp) await open(root, gitDir, comments, null);
+    await writeTextFile(path, message(comments, mcp) + "\n", await readTextFile(path));
     markWritten(root, comments.map((c) => c.id));
     await recordRound(root, comments);
     const copied = await copy(path);

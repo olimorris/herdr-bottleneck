@@ -3,6 +3,7 @@ import { shared, setShared } from "herdr";
 
 export const ORIGIN = "bottleneck.origin", COMMENTS = "bottleneck.comments", ROUND = "bottleneck.round", VIEWED = "bottleneck.viewed";
 export const DRAFTS = "bottleneck.drafts", LAST_AGENT = "bottleneck.lastAgent", HINTS_SHUT = "bottleneck.hintsCollapsed", DIALOG = "bottleneck.dialog";
+export const THREADS = "bottleneck.threads", ORDER = "bottleneck.order";
 
 // Most keys hold one entry per repo or space.
 export const entry = (key, id) => shared(key)?.[id];

@@ -2,16 +2,28 @@
 import { div, svg, image } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { iconFor } from "./icons.js";
-import { pathAt } from "./words.js";
-import { mono } from "./ui.js";
+import { pathAt, ago, linesLabel } from "./words.js";
+import { mono, programIcon } from "./ui.js";
 
 export const LIST_W = 300, FILE_H = 34, HEAD_H = 26, GAP = 12, PART_GAP = 4, NOTE_H = 26;
 
-// A guess at a comment card's height from its text, since the list needs every row's height before drawing it.
-export function commentHeight(text, paneWidth) {
+// A guess at how many lines text wraps to in a card, since the list needs every row's height before drawing it.
+function textRows(text, paneWidth) {
   const perLine = Math.max(20, Math.floor((paneWidth - LIST_W - 80) / 7));
-  const rows = text.split("\n").reduce((n, l) => n + Math.max(1, Math.ceil(l.length / perLine)), 0);
-  return 20 + 18 + rows * 18;
+  return text.split("\n").reduce((n, l) => n + Math.max(1, Math.ceil(l.length / perLine)), 0);
+}
+
+export const commentHeight = (text, paneWidth) => 20 + 18 + textRows(text, paneWidth) * 18;
+
+const AVATAR = 24;
+
+// The box's own height: its border, a path bar when it stands alone, each message (padding, name line, wrapped text, divider) and the status strip.
+export const threadHeight = (thread, paneWidth) => 2 + (thread.loose ? 29 : 0) + 31
+  + thread.messages.reduce((n, m, i) => n + (i > 0 ? 1 : 0) + 20 + 22 + textRows(m.text, paneWidth - AVATAR - 40) * 18, 0);
+
+// The space after a card; between hunks (not parts of one) a rule runs through it, so where one ends and the next begins never needs a second look.
+function gapBelow(gap, t) {
+  return gap === GAP ? div().h(gap).flex().items_center().child(div().w_full().h(1).bg(t.border)) : div().h(gap);
 }
 
 export const gapAfter = (hunk) => (hunk.part && hunk.part < hunk.parts ? PART_GAP : GAP);
@@ -68,19 +80,48 @@ export function hunkTop(file, { header, context, part, parts, start, end }, look
     .child(div().child(pathAt(file.path.split("/").pop(), { start, end }))));
 }
 
+export const STAGED_H = 60;
+
+// Where the files you've staged begin, at the end of the diff: a green rule across the pane, then what's below it.
+export function stagedDivider(n, t) {
+  return v_flex().w_full().h(STAGED_H).px(12).pt(14).gap(10)
+    .child(div().w_full().h(2).rounded(1).bg(t.ansi2 + "88"))
+    .child(h_flex().h(20).gap(8).items_center().text_size(13)
+      .child(div().flex_none().font_weight(700).text_color(t.ansi2).child(`✓ Staged · ${n} file${n === 1 ? "" : "s"}`))
+      .child(div().flex_1().min_w(0).truncate().text_size(12).text_color(t.muted).child("Done with. ⇧space on a file unstages it")));
+}
+
 export function foldedCard(file, look) {
-  const why = file.viewed ? "Viewed, v to unmark" : file.noise ? `${file.noise[0].toUpperCase()}${file.noise.slice(1)}, folded` : "Folded";
-  return div().px(12).pb(GAP).child(cardHead(h_flex().h(HEAD_H + 2).border_1().rounded(6), look)
+  const why = file.staged ? "Staged, ⇧space to unstage" : file.viewed ? "Viewed, v to unmark" : file.noise ? `${file.noise[0].toUpperCase()}${file.noise.slice(1)}, folded` : "Folded";
+  return div().px(12).child(cardHead(h_flex().h(HEAD_H + 2).border_1().rounded(6), look)
     .child(div().flex_1().min_w(0).truncate().child(why))
     .when(look.state !== "none", (e) => e.child(badge(look.state, look.t)))
-    .child(div().flex_none().child("z to show")));
+    .child(div().flex_none().child("z to show")))
+    .child(gapBelow(GAP, look.t));
 }
 
 // One line of a hunk's card; `gap` is set on the card's last row, which closes it.
 export function cardRow(content, { selected, state, t }, gap) {
   const last = gap !== null;
-  return div().px(12).when(last, (e) => e.pb(gap)).child(div().border_x(1).when(last, (e) => e.border_b(1).rounded_b(6)).border_color(selected ? t.muted : t.border)
-    .bg(t.background).overflow_hidden().when(state === "all", (e) => e.opacity(0.4)).child(content));
+  return div().px(12).child(div().border_x(1).when(last, (e) => e.border_b(1).rounded_b(6)).border_color(selected ? t.muted : t.border)
+    .bg(t.background).overflow_hidden().when(state === "all", (e) => e.opacity(0.4)).child(content)).when(last, (e) => e.child(gapBelow(gap, t)));
+}
+
+// Like GitHub's callouts: high is a Caution, medium a Warning, low a quiet tick.
+const RISK = { high: ["High risk", "ansi1", "caution"], medium: ["Medium risk", "ansi3", "risk"], low: ["Low risk", "ansi2", "low"] };
+
+export const riskColor = (risk, t) => t[RISK[risk]?.[1]] ?? t.muted;
+
+// The callout's padding and title line, then the reason wrapped below.
+export const riskHeight = (ranked, paneWidth) => 16 + 20 + 4 + textRows(ranked.reason, paneWidth - 30) * 18 + 10;
+
+export function riskLine(ranked, t) {
+  const [title, , icon] = RISK[ranked.risk] ?? [ranked.risk, null, "risk"], color = riskColor(ranked.risk, t);
+  return div().px(12).pb(10).child(v_flex().pl(14).pr(12).py(8).gap(4).border_l(4).border_color(color)
+    .child(h_flex().h(20).gap(8).items_center()
+      .child(svg(`mods/Bottleneck/ui/${icon}.svg`).size(16).text_color(color))
+      .child(div().text_size(13).font_weight(700).text_color(color).child(title)))
+    .child(div().text_size(13).whitespace_normal().text_color(t.foreground).child(ranked.reason)));
 }
 
 export function noteLine(note, t) {
@@ -116,7 +157,30 @@ export function card(comment, kind, t, height) {
       .child(div().text_size(13).whitespace_normal().child(comment.text)));
 }
 
-// A saved comment is its own row drawn as the bottom of its hunk's card, so a long one can be scrolled to.
+// A saved comment or a conversation is its own row under its hunk's lines, so a long one can be scrolled to; `gap` is set on the row that closes the card.
 export function below(content, selected, gap, t) {
-  return div().px(12).pb(gap).child(v_flex().border_x(1).border_b(1).border_color(selected ? t.muted : t.border).rounded_b(6).overflow_hidden().child(content));
+  const last = gap !== null;
+  return div().px(12).child(v_flex().border_x(1).when(last, (e) => e.border_b(1).rounded_b(6)).border_color(selected ? t.muted : t.border).overflow_hidden().child(content)).when(last, (e) => e.child(gapBelow(gap, t)));
+}
+
+// A sent comment and the agent's answers, boxed apart from the code like a GitHub review thread; `program` is the agent's, for its avatar.
+export function thread(th, program, t) {
+  const waiting = th.messages.at(-1)?.from === "you", agent = program?.name ?? th.name ?? "Agent";
+  const avatar = (m) => div().w(AVATAR).h(AVATAR).flex_none().rounded(AVATAR / 2).bg(t.raised).flex().items_center().justify_center()
+    .child(m.from === "agent" && program ? programIcon(program, t) : svg("mods/Bottleneck/ui/user.svg").size(14).text_color(t.muted));
+  const message = (m, i) => h_flex().items_start().gap(10).px(12).py(10).when(i > 0, (e) => e.border_t(1).border_color(t.border))
+    .child(avatar(m))
+    .child(v_flex().flex_1().min_w(0).gap(4)
+      .child(h_flex().h(18).gap(6).items_center().text_size(12)
+        .child(div().font_semibold().text_color(t.foreground).child(m.from === "agent" ? agent : "You"))
+        .child(div().text_color(t.muted).child(ago(m.at))))
+      .child(div().text_size(13).whitespace_normal().child(m.text)));
+  return v_flex().rounded(6).border_1().border_color(t.border).bg(t.background).overflow_hidden()
+    .when(Boolean(th.loose), (e) => e.child(h_flex().h(28).px(12).items_center().border_b(1).border_color(t.border).bg(t.raised).text_size(12).text_color(t.muted)
+      .child(div().truncate().child(th.file ? "Whole file" : linesLabel(th)))))
+    .children(th.messages.map(message))
+    .child(h_flex().h(30).px(12).gap(8).items_center().border_t(1).border_color(t.border).bg(t.surface).text_size(12)
+      .child(div().w(8).h(8).flex_none().rounded(4).bg(waiting ? t.blocked : th.flagged && th.messages.length === 1 ? t.accent : t.ansi2))
+      .child(div().flex_1().min_w(0).truncate().text_color(t.muted).child(waiting ? `Waiting for ${agent}` : th.flagged && th.messages.length === 1 ? `${agent} flagged this for you` : `${agent} answered`))
+      .child(div().flex_none().text_color(t.muted).child("r reply · x close")));
 }

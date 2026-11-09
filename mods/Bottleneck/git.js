@@ -124,6 +124,33 @@ function finish(hunk) {
   return hunk;
 }
 
+// git joins changes up to 6 lines apart into one hunk; three or more unchanged lines between two changes split it, so each change is its own card to comment on, stage or discard.
+// The unchanged lines between them are shared out, the top half closing the first card and the rest opening the next, so no line shows twice.
+const GAP = 3;
+export function separate(hunk) {
+  const pieces = [];
+  let from = 0, i = 0;
+  while (i < hunk.lines.length) {
+    if (hunk.lines[i].kind !== " ") { i++; continue; }
+    let j = i;
+    while (j < hunk.lines.length && hunk.lines[j].kind === " ") j++;
+    const between = i > from && hunk.lines.slice(from, i).some((l) => l.kind !== " ") && j < hunk.lines.length;
+    if (between && j - i >= GAP) {
+      const cut = i + Math.ceil((j - i) / 2);
+      pieces.push(hunk.lines.slice(from, cut));
+      from = cut;
+    }
+    i = j;
+  }
+  pieces.push(hunk.lines.slice(from));
+  if (pieces.length === 1) return [hunk];
+  return pieces.map((lines) => {
+    const oldSide = lines.filter((l) => l.kind !== "+"), newSide = lines.filter((l) => l.kind !== "-");
+    const old = oldSide[0]?.old ?? lines[0].old, next = newSide[0]?.number ?? lines[0].at;
+    return { ...hunk, header: `@@ -${old},${oldSide.length} +${next},${newSide.length} @@`, old, next, lines };
+  });
+}
+
 // A long hunk becomes parts of about PART lines, cut at a blank line where one is near, so each gets its own comment.
 function split(hunk) {
   if (hunk.lines.length <= PART * 1.5) return [finish(hunk)];
@@ -192,7 +219,7 @@ function clip(file) {
     count += h.lines.length;
   }
   file.lines = file.hunks.flatMap((h) => h.lines);
-  file.hunks = file.hunks.filter((h) => h.lines.length).flatMap(split);
+  file.hunks = file.hunks.filter((h) => h.lines.length).flatMap(separate).flatMap(split);
 }
 
 async function untrackedPaths(root) {
@@ -215,6 +242,8 @@ export async function touches(root, dir, paths) {
   if (paths.length > 1000) return true;
   const work = [];
   for (const p of paths) {
+    // Bottleneck's own files in .git aren't the diff; only the MCP server's messages are news.
+    if ((p === `${dir}/bottleneck` || p.startsWith(`${dir}/bottleneck/`)) && !p.startsWith(`${dir}/bottleneck/inbox/`)) continue;
     if (p === dir || p.startsWith(`${dir}/`)) { if (!p.startsWith(`${dir}/objects/`)) return true; }
     else if (p.startsWith(`${root}/`)) work.push(p.slice(root.length + 1));
     else return true;

@@ -34,22 +34,33 @@ export function footer(t, status, buttons) {
 const STATUS = { working: "working", blocked: "blocked", done: "done", idle: "idle" };
 
 // Herdr doesn't say which model an agent runs, so each row's title and tab are what tell two Claude Codes apart; `enabled` false shows it for context only.
+export const programIcon = (p, t) => !p.icon ? div().w(16).h(16).flex_none().rounded(4).bg(p.tile ?? t.raised)
+  : p.tint ? svg(p.icon).size(16).flex_none().text_color(p.color ?? t.foreground) : image(p.icon).size(16).flex_none();
+
+const pickRow = (id, on, enabled, t, pick) => h_flex().id(id).h(34).px(10).gap(10).items_center().rounded(7).text_size(12)
+  .border_1().border_color(on ? t.muted : "#00000000").when(on, (e) => e.bg(t.raised))
+  .when(enabled, (e) => e.cursor_pointer().hover((s) => s.bg(t.hover)).on_click((_e, cx) => { pick(); cx.notify(); }));
+
 export function agentList(t, list, selected, pick, prefix, enabled = true) {
   return v_flex().gap(2)
     .when(!list.length, (e) => e.child(div().h(34).px(10).flex().items_center().text_size(12).text_color(t.muted).child("No agents in this space")))
     .children(list.map((a) => {
-      const on = a.address === selected, p = a.program;
-      const icon = !p.icon ? div().w(16).h(16).flex_none().rounded(4).bg(p.tile ?? t.raised)
-        : p.tint ? svg(p.icon).size(16).flex_none().text_color(p.color ?? t.foreground) : image(p.icon).size(16).flex_none();
-      return h_flex().id(`${prefix}-${a.address}`).h(34).px(10).gap(10).items_center().rounded(7).text_size(12)
-        .border_1().border_color(on ? t.muted : "#00000000").when(on, (e) => e.bg(t.raised))
-        .when(enabled, (e) => e.cursor_pointer().hover((s) => s.bg(t.hover)).on_click((_e, cx) => { pick(a); cx.notify(); }))
-        .child(icon)
+      const p = a.program;
+      return pickRow(`${prefix}-${a.address}`, a.address === selected, enabled, t, () => pick(a))
+        .child(programIcon(p, t))
         .child(div().flex_none().font_semibold().child(p.name))
         .child(div().flex_1().min_w(0).truncate().text_color(t.muted).child(a.title ?? ""))
         .child(div().flex_none().text_size(11).text_color(t.muted).child(a.tab_name ? `tab ${a.tab_name}` : ""))
         .child(div().w(8).h(8).flex_none().rounded(4).bg(t[STATUS[a.status] ?? "idle"] ?? t.muted));
     }));
+}
+
+// Agents Herdr can start, picked as `new:<index>` alongside the running ones.
+export function newAgentList(t, programs, selected, pick, prefix) {
+  return v_flex().gap(2).children(programs.map((p, i) => pickRow(`${prefix}-new-${i}`, selected === `new:${i}`, true, t, () => pick(`new:${i}`))
+    .child(programIcon(p, t))
+    .child(div().flex_none().font_semibold().child(`New ${p.name}`))
+    .child(div().flex_1().min_w(0).truncate().text_color(t.muted).child("in a new tab"))));
 }
 
 // A section's small heading inside a dialog's body.

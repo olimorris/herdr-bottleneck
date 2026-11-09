@@ -115,3 +115,22 @@ test("the folder watch's changes count unless they're all ignored files or git o
   assert.equal(await touches(r.root, r.gitDir, [join(r.gitDir, "index")]), true);
   assert.equal(await touches(r.root, r.gitDir, ["/somewhere/else"]), true);
 });
+
+test("changes git joins into one hunk become a card each when three or more unchanged lines part them", async (t) => {
+  const r = repo(t, { "a.txt": lines(1, 30) });
+  r.write("a.txt", lines(1, 30).replace("line 10\n", "ten\n").replace("line 14\n", "fourteen\n"));
+  const [first, second] = file((await changes(r.root, "HEAD", look)).files, "a.txt").hunks;
+  assert.deepEqual([first.start, first.end, second.start, second.end], [10, 10, 14, 14]);
+  assert.deepEqual(first.lines.map((l) => l.kind + l.number), [" 7", " 8", " 9", "-10", "+10", " 11", " 12"]);
+  assert.deepEqual(second.lines.map((l) => l.kind + l.number), [" 13", "-14", "+14", " 15", " 16", " 17"]);
+  assert.equal(first.header, "@@ -7,6 +7,6 @@");
+  assert.equal(second.header, "@@ -13,5 +13,5 @@");
+});
+
+test("changes two lines apart stay one card", async (t) => {
+  const r = repo(t, { "a.txt": lines(1, 30) });
+  r.write("a.txt", lines(1, 30).replace("line 10\n", "ten\n").replace("line 13\n", "thirteen\n"));
+  const { hunks } = file((await changes(r.root, "HEAD", look)).files, "a.txt");
+  assert.equal(hunks.length, 1);
+  assert.deepEqual([hunks[0].start, hunks[0].end], [10, 13]);
+});
